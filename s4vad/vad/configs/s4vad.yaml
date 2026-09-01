@@ -1,0 +1,86 @@
+# ###########################################
+# Setup Configuration
+# ###########################################
+
+
+# -------------------------------------------------
+# Common
+# -------------------------------------------------
+common_cfg:
+   experiment_name: "vad"                           # Experiment identifier (voice activity detection)
+   sample_rate: 16000                               # Audio sampling rate in Hz
+   segment_ms: 3000                                  # Length of each audio segment in milliseconds
+   preprocess: 'fft'                                # Audio preprocessing method
+   mel_cfg:
+     n_mels: 64                                     # Number of mel frequency bins
+     n_fft: 512                                     # FFT window size
+     win_length: 480                                # STFT window length (samples)
+     hop_length: 160                                # STFT hop length (samples)
+     f_min: 0                                       # Minimum mel frequency (Hz)
+     f_max: 8000                                    # Maximum mel frequency (Hz)
+     center: False                                  # Disable frame-centering padding
+
+# -------------------------------------------------
+# Dataset
+# -------------------------------------------------
+dataset: "librispeech"                               # Name of the dataset used for VAD training
+dataset_cfg:
+  val_ds:
+    path: './data/LibriSpeech/test-clean.json'      # Path to the validation speech dataset
+    noise_path: ./data/DNS2023/test.json            # Path to the validation noise dataset
+    sample_rate: !ref <common_cfg[sample_rate]>     # Audio sampling rate for validation data
+    mel_cfg: !ref <common_cfg[mel_cfg]>             # Mel-spectrogram configuration for validation
+    preprocess: !ref <common_cfg[preprocess]>       # Audio preprocessing method for validation
+    segment_ms: !ref <common_cfg[segment_ms]>       # Validation segment length
+    segment_hop_ms: 10                              # Hop size between validation segments
+    num_workers: 4                                  # Number of validation dataloader workers
+    snrs: [-10,5,0,5,10]                            # SNR validation levels
+
+
+#dataset: "avaspeech"
+#dataset_cfg:
+#  val_ds:
+#    path: ./data/AVA_speech
+#    sample_rate: !ref <common_cfg[sample_rate]>
+#    mel_cfg: !ref <common_cfg[mel_cfg]>
+#    preprocess: !ref <common_cfg[preprocess]>
+#    segment_ms: !ref <common_cfg[segment_ms]>
+#    segment_hop_ms: 10
+#    num_workers: 0
+
+
+# -------------------------------------------------
+# Model
+# -------------------------------------------------
+model: "s4vad"                                      # Model architecture name
+model_cfg:
+  arch_cfg:
+    feat_dim: 64                                    # Input feature dimension
+    d_model: 64                                     # Model hidden dimension
+    T: [201, 201, 201, 201]                          # Temporal sequence length per layer
+    N: 64                                           # State size / channel dimension
+    dt_min: [0.60, 0.60, 0.60, 0.60]                # Minimum S4 time-step range per layer
+    dt_max: [1.00, 1.00, 1.00, 1.00]                # Maximum S4 time-step range per layer
+    num_layers: 4                                   # Number of model layers
+    dropout: 0.1                                    # Dropout probability
+    causal: True                                    # Enable causal (streaming-safe) mode
+    dual: False                                     # Disable dual-path architecture
+  sample_rate: !ref <common_cfg[sample_rate]>       # Reuse global sample rate
+  segment_ms: !ref <common_cfg[segment_ms]>         # Reuse segment duration
+  mel_cfg: !ref <common_cfg[mel_cfg]>               # Reuse mel configuration
+  melspec: "none"                                   # Mel generation method
+  preprocess: !ref <common_cfg[preprocess]>         # Reuse preprocessing method
+  streaming: True                                   # Enable streaming inference
+  on_threshold: 0.8                                 # VAD activation threshold
+  off_threshold: 0.4                                # VAD deactivation threshold
+  hard_decision: False                              # Use probabilistic output
+  median_kernel_size: 1                             # Median filter kernel size
+  path: ./checkpoints/s4vad_10ms.pth                  # Pretrained 10-ms S4VAD weights
+
+
+# -------------------------------------------------
+# Evaluator
+# -------------------------------------------------
+evaluator: "vad_evaluator"                          # Evaluator implementation
+evaluator_cfg:
+    streaming: !ref <model_cfg[streaming]>          # Match model streaming mode

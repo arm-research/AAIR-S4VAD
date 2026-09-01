@@ -1,0 +1,105 @@
+# ###########################################
+# Setup Configuration
+# ###########################################
+
+
+# -------------------------------------------------
+# Common
+# -------------------------------------------------
+common_cfg:
+   experiment_name: "vad"                           # Experiment identifier (voice activity detection)
+   sample_rate: 16000                               # Audio sampling rate in Hz
+   segment_ms: 3000                                  # Length of each audio segment in milliseconds
+   preprocess: 'fft'                                # Audio preprocessing method
+   mel_cfg:
+     n_mels: 64                                     # Number of mel frequency bins
+     n_fft: 512                                     # FFT window size
+     win_length: 480                                # STFT window length (samples)
+     hop_length: 160                                # STFT hop length (samples)
+     f_min: 0                                       # Minimum mel frequency (Hz)
+     f_max: 8000                                    # Maximum mel frequency (Hz)
+     center: False                                  # Disable frame-centering padding
+
+
+# -------------------------------------------------
+# Dataset
+# -------------------------------------------------
+dataset: "librispeech"                                # Dataset name
+dataset_cfg:
+  train_ds:
+    path: ./data/LibriSpeech/train-clean-100.json    # Path to training dataset manifest
+    noise_path: ./data/DNS2023/train.json            # Path to noise dataset for augmentation
+    sample_rate: !ref <common_cfg[sample_rate]>      # Reuse global sample rate
+    mel_cfg: !ref <common_cfg[mel_cfg]>               # Reuse mel-spectrogram configuration
+    preprocess: !ref <common_cfg[preprocess]>        # Reuse preprocessing method
+    segment_ms: 3000                                  # Training segment duration in milliseconds
+    batch_size: 512                                   # Training batch size
+    num_workers: 4                                    # Number of data loading workers
+    aug_cfg:
+      snr_range: [-5,20]                              # Signal-to-noise ratio range (dB)
+      white_noise_range: [-90,-46]                    # White noise power range (dB)
+      time_mask_param: 0                              # Time masking parameter (disabled)
+      freq_mask_param: 0                              # Frequency masking parameter (disabled)
+  val_ds:
+    path: ./data/LibriSpeech/dev-clean.json          # Path to validation dataset manifest
+    noise_path: ./data/DNS2023/val.json              # Path to validation noise dataset
+    sample_rate: !ref <common_cfg[sample_rate]>      # Reuse global sample rate
+    mel_cfg: !ref <common_cfg[mel_cfg]>               # Reuse mel-spectrogram configuration
+    preprocess: !ref <common_cfg[preprocess]>        # Reuse preprocessing method
+    segment_ms: !ref <common_cfg[segment_ms]>         # Reuse global segment duration
+    segment_hop_ms: 10                                # Segment hop size for validation (ms)
+    batch_size: 512                                   # Validation batch size
+    num_workers: 4                                    # Number of data loading workers
+    max_samples: 1000                                 # Maximum number of validation samples
+    snrs: [-10,5,0,5,10]                              # SNR levels used for evaluation
+
+
+
+# -------------------------------------------------
+# Model
+# -------------------------------------------------
+model: "s4vad"                                      # Model architecture name
+model_cfg:
+  arch_cfg:
+    feat_dim: 64                                    # Input feature dimension
+    d_model: 64                                     # Model hidden dimension
+    T: [201, 201, 201, 201]                          # Temporal sequence length per layer
+    N: 64                                           # State size / channel dimension
+    dt_min: [0.60, 0.60, 0.60, 0.60]                # Minimum S4 time-step range per layer
+    dt_max: [1.00, 1.00, 1.00, 1.00]                # Maximum S4 time-step range per layer
+    num_layers: 4                                   # Number of model layers
+    dropout: 0.1                                    # Dropout probability
+    causal: True                                    # Enable causal (streaming-safe) mode
+    dual: False                                     # Disable dual-path architecture
+  sample_rate: !ref <common_cfg[sample_rate]>       # Reuse global sample rate
+  segment_ms: !ref <common_cfg[segment_ms]>         # Reuse segment duration
+  mel_cfg: !ref <common_cfg[mel_cfg]>               # Reuse mel configuration
+  melspec: "none"                                   # Mel generation method
+  preprocess: !ref <common_cfg[preprocess]>         # Reuse preprocessing method
+  streaming: False                                   # Enable streaming inference
+  on_threshold: 0.8                                 # VAD activation threshold
+  off_threshold: 0.4                                # VAD deactivation threshold
+  hard_decision: False                              # Use probabilistic output
+  median_kernel_size: 1                             # Median filter kernel size
+  path:                                            # Optional pretrained weights path
+
+# -------------------------------------------------
+# Trainer
+# -------------------------------------------------
+trainer: "vad_trainer"                              # Trainer implementation
+trainer_cfg:
+  epochs: 100                                       # Number of training epochs
+  evaluate_every_n_epochs: 5                         # Evaluation interval
+  gradient_max_norm: 5                              # Gradient clipping norm
+  loss_func: !name:torch.nn.functional.binary_cross_entropy_with_logits  # Loss function
+  optimizer: !name:torch.optim.AdamW                # Optimizer type
+  optimizer_cfg:
+    lr: 0.001                                       # Learning rate
+    weight_decay: 0.0001                            # Weight decay factor
+  schedualer: !name:torch.optim.lr_scheduler.CosineAnnealingLR  # LR scheduler
+  schedualer_cfg:
+    T_max: !ref <trainer_cfg[epochs]>               # Scheduler period
+    eta_min: 0.00005                                # Minimum learning rate
+  warmup: True                                      # Enable learning-rate warmup
+  save_last: False                                  # Do not save last checkpoint
+  out_dir: "./"                                     # Output directory
