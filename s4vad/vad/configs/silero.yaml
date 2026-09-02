@@ -1,0 +1,74 @@
+# ###########################################
+# Setup Configuration
+# ###########################################
+
+
+# -------------------------------------------------
+# Common
+# -------------------------------------------------
+common_cfg:
+   experiment_name: "silero"
+   sample_rate: 16000
+   segment_ms: 512
+   preprocess: "split"
+   mel_cfg:
+     n_mels: 64
+     n_fft: 512
+     win_length: 480
+     hop_length: 160
+     f_min: 0
+     f_max: 8000
+     center: False
+
+
+# -------------------------------------------------
+# Dataset
+# -------------------------------------------------
+dataset: "librispeech"
+dataset_cfg:
+  val_ds:
+    path: ./data/LibriSpeech/test-clean.json
+    noise_path: ./data/DNS2023/test.json
+    sample_rate: !ref <common_cfg[sample_rate]>
+    mel_cfg: !ref <common_cfg[mel_cfg]>
+    preprocess: !ref <common_cfg[preprocess]>
+    segment_ms: !ref <common_cfg[segment_ms]>
+    segment_hop_ms: 10
+    batch_size: 512
+    max_samples: 1000
+    num_workers: 0
+    snrs: [20]
+
+
+#dataset: "avaspeech"
+#dataset_cfg:
+#  val_ds:
+#    path: ./data/AVA_speech
+#    sample_rate: !ref <common_cfg[sample_rate]>
+#    mel_cfg: !ref <common_cfg[mel_cfg]>
+#    preprocess: !ref <common_cfg[preprocess]>
+#    segment_ms: !ref <common_cfg[segment_ms]>
+#    segment_hop_ms: 10
+#    num_workers: 0
+
+# -------------------------------------------------
+# Model
+# -------------------------------------------------
+model: "silero"
+model_cfg:
+  sample_rate: !ref <common_cfg[sample_rate]>
+  mel_cfg: !ref <common_cfg[mel_cfg]>
+  melspec: "none" # 'none', 'fft' or 'conv'
+  preprocess: !ref <common_cfg[preprocess]>
+  on_threshold: 0.5
+  off_threshold: 0.2
+  hard_decision: False
+
+
+# -------------------------------------------------
+# Evaluator
+# -------------------------------------------------
+evaluator: "noisy_onset_evaluator"
+evaluator_cfg:
+    deltaL: 10
+    deltaR : 10
