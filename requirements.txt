@@ -1,0 +1,14 @@
+numpy
+torch
+torchaudio
+torchcodec
+torchvision
+tqdm
+pandas
+matplotlib
+scipy
+soundfile
+scikit-learn
+HyperPyYAML
+einops
+silero-vad
